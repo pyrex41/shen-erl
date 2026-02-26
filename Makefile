@@ -30,7 +30,7 @@ EXE ?= shen-erl
 
 .PHONY: all
 .DEFAULT: all
-all: $(EXE)
+all: shen-kl
 
 ## Shen sources
 ShenOSKernel-$(SHENVERSION):
@@ -58,21 +58,28 @@ erlc-compile: $(addprefix $(EBINDIR)/, $(EBINS)) $(addprefix $(BINDIR)/, $(BINS)
 clean:
 	rm -rf $(EBINDIR)/*.beam $(BINDIR)/* erl_crash.dump test/shen test/logs
 
+.PHONY: distclean
+distclean: clean
+	rm -rf ShenOSKernel-$(SHENVERSION) ShenOSKernel-$(SHENVERSION).tar.gz
+	rm -rf $(KLSRCDIR)
+	rm -f $(SRCDIR)/shen_erl_kl_scan.erl $(SRCDIR)/shen_erl_kl_parse.erl
+
 ## shen-erlang compile
 $(EXE): erlc-compile
 
-## Lexer & parser
-.PHONY: lexer
-lexer:
+## Lexer & parser (generated from .xrl and .yrl)
+$(SRCDIR)/shen_erl_kl_scan.erl: $(SRCDIR)/shen_erl_kl_scan.xrl
 	erl -noshell -eval 'leex:file("src/shen_erl_kl_scan"), init:stop().'
 
-.PHONY: parser
-parser:
+$(SRCDIR)/shen_erl_kl_parse.erl: $(SRCDIR)/shen_erl_kl_parse.yrl
 	erl -noshell -eval 'yecc:file("src/shen_erl_kl_parse"), init:stop().'
+
+erlc-compile: $(SRCDIR)/shen_erl_kl_scan.erl $(SRCDIR)/shen_erl_kl_parse.erl
+erlc-compile: $(EBINDIR)/shen_erl_kl_scan.beam $(EBINDIR)/shen_erl_kl_parse.beam
 
 ## Compile .kl files
 .PHONY: shen-kl
-shen-kl: $(EXE)
+shen-kl: $(EXE) $(KLSRCDIR)
 	@$(INSTALL_DIR) $(EBINDIR)
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --kl $(addprefix $(KLSRCDIR)/, $(KL_SRCS)) --output-dir $(EBINDIR)
 
