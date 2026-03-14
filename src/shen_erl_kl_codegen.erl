@@ -46,8 +46,8 @@ compile(ToplevelDef = [defun, Name, Args, _Body]) ->
 compile(ToplevelDef) ->
   compile(rand_modname(32, []), [ToplevelDef], ok).
 
--spec compile(module(), shen_erl_kl_parse:kl_tree(), atom()) -> {ok, binary()} |
-                                                                {error, binary()}.
+-spec compile(module(), shen_erl_kl_parse:kl_tree(), atom()) -> {ok, module(), binary()} |
+                                                                {error, term()}.
 compile(Mod, ToplevelDefs, DefaultTle) ->
   compile_toplevel(Mod, ToplevelDefs, #code{signatures = [],
                                             forms = [],

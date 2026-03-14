@@ -11,6 +11,9 @@
          eval/1,
          load/1]).
 
+%% kl_* modules are compiled from KLambda at build time and are absent during Dialyzer analysis
+-dialyzer({nowarn_function, [load/1, eval/1, eval_kl/1, start_repl/0, load_funs/0]}).
+
 %% Macros
 -define(KL_MODS, ['kl_core',
                   'kl_dict',

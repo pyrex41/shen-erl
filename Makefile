@@ -63,6 +63,7 @@ distclean: clean
 	rm -rf ShenOSKernel-$(SHENVERSION) ShenOSKernel-$(SHENVERSION).tar.gz
 	rm -rf $(KLSRCDIR)
 	rm -f $(SRCDIR)/shen_erl_kl_scan.erl $(SRCDIR)/shen_erl_kl_parse.erl
+	rm -f .*.plt
 
 ## shen-erlang compile
 $(EXE): erlc-compile
@@ -91,12 +92,15 @@ test/shen: ShenOSKernel-$(SHENVERSION)
 shen-tests: shen-kl test/shen
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --script scripts/run-shen-tests.shen
 
+ct: erlc-compile
+	ct_run -pa $(EBINDIR) -dir test
+
 
 ################################################################################
 ## DOCKER
 ################################################################################
 
-DOCKER_ERLANG_IMAGE = erlang:20.0.2
+DOCKER_ERLANG_IMAGE = erlang:27.3
 
 .PHONY: docker-test
 docker-test:

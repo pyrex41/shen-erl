@@ -66,8 +66,8 @@ hash(Val, Bound) ->
   case shen_erl_global_stores:dict_get(Dict, Key) of
     {ok, Val} -> Val;
     not_found ->
-      {string, KeyStr} = shen_erl_primitives:str(Key),
-      shen_erl_primitives:'simple-error'({string, "`" ++ KeyStr ++ "` not found."})
+      {string, KeyStr} = shen_erl_kl_primitives:str(Key),
+      shen_erl_kl_primitives:'simple-error'({string, "`" ++ KeyStr ++ "` not found."})
   end.
 
 'shen.dict-rm'({dict, Dict}, Key) ->
@@ -97,7 +97,7 @@ hash(Val, Bound) ->
   {string, binary_to_list(Binary)}.
 
 'cd'({string, ""}) ->
-  'cd'(shen_erl_kl_primitives:get('*home-directory*'));
+  'cd'(shen_erl_kl_primitives:value('*home-directory*'));
 'cd'(DirStr = {string, Dir}) ->
   shen_erl_kl_primitives:set('*home-directory*', DirStr),
   file:set_cwd(Dir).

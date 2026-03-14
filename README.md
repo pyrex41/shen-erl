@@ -28,7 +28,7 @@ Erlang tests are run through Docker:
 ```
 make docker-test
 # also run dialyzer
-make docker-dialzye
+make docker-dialyze
 ```
 
 ## Shen tests

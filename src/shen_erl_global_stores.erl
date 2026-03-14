@@ -22,6 +22,8 @@
          dict_keys/1,
          dict_values/1]).
 
+-export_type([dict/0]).
+
 %% Macros
 -define(FUNCTIONS_STORE_NAME, '_kl_funs_store').
 -define(VALUES_STORE_NAME, '_kl_values_store').
@@ -35,7 +37,7 @@
                        shen_erl_kl_extensions]).
 -define(PORT_KL_NON_OVERRIDABLE_MODS, [shen_erl_kl_overrides]).
 
--opaque dict() :: ets:tid().
+-opaque dict() :: atom().
 
 %%%===================================================================
 %%% API
@@ -100,11 +102,13 @@ dict_count(Dict) ->
 
 -spec dict_set(dict(), term(), term()) -> ok.
 dict_set(Dict, Key, Val) ->
-  ets:insert(Dict, {Key, Val}).
+  ets:insert(Dict, {Key, Val}),
+  ok.
 
 -spec dict_set(dict(), [{term(), term()}]) -> ok.
 dict_set(Dict, Pairs) ->
-  ets:insert(Dict, Pairs).
+  ets:insert(Dict, Pairs),
+  ok.
 
 -spec dict_get(dict(), term()) -> {ok, term()} | not_found.
 dict_get(Dict, Key) ->
@@ -112,7 +116,8 @@ dict_get(Dict, Key) ->
 
 -spec dict_rm(dict(), term()) -> ok.
 dict_rm(Dict, Key) ->
-  ets:delete(Dict, Key).
+  ets:delete(Dict, Key),
+  ok.
 
 -spec dict_fold(dict(), fun((term(), term()) -> term()), term()) -> term().
 dict_fold(Dict, F, Init) ->
