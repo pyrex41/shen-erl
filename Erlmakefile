@@ -6,7 +6,7 @@ BASE_DIR = $(shell pwd)
 
 PROJECT = shen_erl
 PROJECT_DESCRIPTION = Shen Erlang Port
-PROJECT_VERSION = 0.0.1
+PROJECT_VERSION = 0.1.0
 
 CT_LOGS_DIR = test/logs
 CT_OPTS = -spec test/default.spec

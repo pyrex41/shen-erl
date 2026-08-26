@@ -6,6 +6,7 @@
 
 %% API
 -export(['hash'/2,
+         'pr'/2,
          'not'/1,
          'boolean?'/1,
          'integer?'/1,
@@ -29,7 +30,18 @@
 %%% API
 %%%===================================================================
 
-'symbol?'(Val) when is_atom(Val) -> true;
+%% *hush* suppresses terminal output, never writes to an explicitly opened
+%% file stream.  This is the portable launcher/Yggdrasil contract used by the
+%% maintained ports.
+pr(String, standard_io) ->
+  case shen_erl_global_stores:get_val('*hush*') of
+    {ok, true} -> String;
+    _ -> shen_erl_kl_primitives:'shen.write-string'(String, standard_io)
+  end;
+pr(String, Stream) ->
+  shen_erl_kl_primitives:'shen.write-string'(String, Stream).
+
+'symbol?'(Val) when is_atom(Val), Val =/= true, Val =/= false -> true;
 'symbol?'(_Val) -> false.
 
 hash(Val, Bound) ->
@@ -92,7 +104,7 @@ hash(Val, Bound) ->
   {ok, Binary} = file:read_file(Filename),
   binary_to_list(Binary).
 
-'read-file-as-string'(Filename) ->
+'read-file-as-string'({string, Filename}) ->
   {ok, Binary} = file:read_file(Filename),
   {string, binary_to_list(Binary)}.
 

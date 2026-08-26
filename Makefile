@@ -1,6 +1,16 @@
 BASE_DIR = $(shell pwd)
 
-SHENVERSION = 22.2
+SHENVERSION = 41.2
+SHEN_REFRESH = 20260711
+SHEN_ARCHIVE = S$(SHENVERSION)-$(SHEN_REFRESH).zip
+SHEN_ARCHIVE_URL = https://www.shenlanguage.org/Download/S41.2.zip
+SHEN_ARCHIVE_SHA256 = 51becbfd60fa8c93c3f8ae5b20b948eaa84c4b1d14ad2f5d2a056002a53ee836
+SHEN_DISTDIR = S41
+
+COMMUNITY_ARCHIVE = ShenOSKernel-$(SHENVERSION).tar.gz
+COMMUNITY_ARCHIVE_URL = https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/$(COMMUNITY_ARCHIVE)
+COMMUNITY_ARCHIVE_SHA256 = d2182d70453d3e93d13bc20f763efdc18cdb23b481f41afb9943f5e9a0798f61
+COMMUNITY_DISTDIR = ShenOSKernel-$(SHENVERSION)
 
 INSTALL = install
 INSTALL_DIR = $(INSTALL) -m755 -d
@@ -32,13 +42,30 @@ EXE ?= shen-erl
 .DEFAULT: all
 all: shen-kl
 
-## Shen sources
-ShenOSKernel-$(SHENVERSION):
-	curl -LO 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/ShenOSKernel-$(SHENVERSION).tar.gz'
-	tar xzf ShenOSKernel-$(SHENVERSION).tar.gz
+## Shen sources.  The kernel proper is Mark Tarver's refreshed S41.2 upload;
+## the portable launcher/features extensions and certification tests come from
+## the community ShenOSKernel 41.2 release, matching the other maintained ports.
+$(SHEN_ARCHIVE):
+	curl -fL '$(SHEN_ARCHIVE_URL)' -o $@
+	printf '%s  %s\n' '$(SHEN_ARCHIVE_SHA256)' '$@' | shasum -a 256 -c
 
-$(KLSRCDIR): ShenOSKernel-$(SHENVERSION)
-	cp -r ShenOSKernel-$(SHENVERSION)/klambda $(KLSRCDIR)
+$(SHEN_DISTDIR): $(SHEN_ARCHIVE)
+	unzip -qo $(SHEN_ARCHIVE)
+	touch $(SHEN_DISTDIR)
+
+$(COMMUNITY_ARCHIVE):
+	curl -fL '$(COMMUNITY_ARCHIVE_URL)' -o $@
+	printf '%s  %s\n' '$(COMMUNITY_ARCHIVE_SHA256)' '$@' | shasum -a 256 -c
+
+$(COMMUNITY_DISTDIR): $(COMMUNITY_ARCHIVE)
+	tar xzf $(COMMUNITY_ARCHIVE)
+	touch $(COMMUNITY_DISTDIR)
+
+$(KLSRCDIR): $(SHEN_DISTDIR) $(COMMUNITY_DISTDIR)
+	mkdir -p $(KLSRCDIR)
+	cp $(SHEN_DISTDIR)/KLambda/*.kl $(KLSRCDIR)
+	cp $(COMMUNITY_DISTDIR)/klambda/extension-*.kl $(KLSRCDIR)
+	touch $(KLSRCDIR)
 
 ## Compile C files
 $(BINDIR)/%: $(CSRCDIR)/%.c
@@ -60,7 +87,8 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	rm -rf ShenOSKernel-$(SHENVERSION) ShenOSKernel-$(SHENVERSION).tar.gz
+	rm -rf $(SHEN_DISTDIR) $(SHEN_ARCHIVE)
+	rm -rf $(COMMUNITY_DISTDIR) $(COMMUNITY_ARCHIVE)
 	rm -rf $(KLSRCDIR)
 	rm -f $(SRCDIR)/shen_erl_kl_scan.erl $(SRCDIR)/shen_erl_kl_parse.erl
 	rm -f .*.plt
@@ -85,15 +113,17 @@ shen-kl: $(EXE) $(KLSRCDIR)
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --kl $(addprefix $(KLSRCDIR)/, $(KL_SRCS)) --output-dir $(EBINDIR)
 
 ## Tests
-test/shen: ShenOSKernel-$(SHENVERSION)
-	cp -r ShenOSKernel-$(SHENVERSION)/tests test/shen
+test/shen: $(COMMUNITY_DISTDIR)
+	cp -r $(COMMUNITY_DISTDIR)/tests test/shen
 
 .PHONY: shen-tests
 shen-tests: shen-kl test/shen
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --script scripts/run-shen-tests.shen
 
 ct: erlc-compile
-	ct_run -pa $(EBINDIR) -dir test
+	@$(INSTALL_DIR) test/logs
+	erl -noshell -pa $(abspath $(EBINDIR)) -eval \
+	  'Result = ct:run_test([{dir,"$(abspath test)"},{logdir,"$(abspath test/logs)"}]), io:format("CT_RESULT=~p~n", [Result]), case Result of {_Ok,0,_Skipped} -> halt(0); _ -> halt(1) end.'
 
 
 ################################################################################

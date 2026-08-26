@@ -89,9 +89,13 @@ compile_toplevel(Mod, [], #code{signatures = Sigs, forms = Forms, tles = Tles}) 
   TleFunction = erl_syntax:function(erl_syntax:atom(kl_tle), [TleClause]),
   TleForm = erl_syntax:revert(TleFunction),
 
-  case compile:forms([ModForm, ExportForm, TleForm | Forms]) of
-    {ok, Mod, Bin} -> {ok, Mod, Bin};
-    SomethingElse -> {error, SomethingElse}
+  %% Returning warnings keeps runtime eval output clean; compiler diagnostics
+  %% must not leak into Shen program stdout/stderr (Bifrost treats both as the
+  %% observable launcher result).
+  case compile:forms([ModForm, ExportForm, TleForm | Forms],
+                     [return_errors, return_warnings]) of
+    {ok, Mod, Bin, _Warnings} -> {ok, Mod, Bin};
+    {error, Errors, Warnings} -> {error, {Errors, Warnings}}
   end.
 
 %% Lists
@@ -129,12 +133,19 @@ compile_exp({string, Exp}, _Env) ->
   erl_syntax:tuple([erl_syntax:atom(string), erl_syntax:string(Exp)]);
 
 %% lambda
-compile_exp([lambda, Var, Body], Env) when is_atom(Var) -> % (lambda X (+ X 2))
-  IsUnused = is_unused(Var, Body),
-  {EVar, Env2} = shen_erl_kl_env:store_var(Env, Var, IsUnused),
-  CBody = compile_exp(Body, Env2),
-  Clause = erl_syntax:clause([erl_syntax:variable(EVar)], [], [CBody]),
-  erl_syntax:fun_expr([Clause]);
+%% Shen eta-expands partial applications using the arity recorded while the
+%% containing form is compiled.  A nested (load ...) can redefine a user
+%% function before that form executes, so collapse the compiler-generated
+%% trailing-variable shape to a live, runtime-dispatched partial application.
+%% Hand-written lambdas do not match this exact shape and remain ordinary BEAM
+%% closures.
+compile_exp(Exp = [lambda, Var, Body], Env) when is_atom(Var) -> % (lambda X (+ X 2))
+  case dynamic_eta_app(Exp) of
+    {ok, Op, Args} ->
+      compile_runtime_app(Op, [compile_exp(Arg, Env) || Arg <- Args]);
+    no ->
+      compile_lambda(Var, Body, Env)
+  end;
 
 %% let
 compile_exp(['let', Var, ExpValue, Body], Env) when is_atom(Var) -> % (let X (+ 2 2) (+ X 3))
@@ -144,6 +155,11 @@ compile_exp(['let', Var, ExpValue, Body], Env) when is_atom(Var) -> % (let X (+ 
   CBody = compile_exp(Body, Env2),
   Clause = erl_syntax:clause([erl_syntax:variable(EVar)], none, [CBody]),
   erl_syntax:case_expr(CExpValue, [Clause]);
+
+%% Type annotations are runtime no-ops.  The second argument is type syntax
+%% represented as lists (for example [[t --> f] --> f]), not executable KL.
+compile_exp(['type', Exp, _Type], Env) ->
+  compile_exp(Exp, Env);
 
 %% if
 compile_exp(['if', Exp, ExpTrue, ExpFalse], Env) ->
@@ -238,13 +254,14 @@ compile_exp([Op | Args], Env) when is_atom(Op) -> % (a b c)
       %% Case 1.2: Function operator is a global function
       case shen_erl_global_stores:get_mfa(Op) of
         {ok, {Mod, Fun, Arity}} ->
-          COp = erl_syntax:module_qualifier(erl_syntax:atom(Mod), erl_syntax:atom(Fun)),
-          compile_static_app(COp, Arity, CArgs, Env);
+          case is_dynamic_function(Op, Mod) of
+            true -> compile_runtime_app(Op, CArgs);
+            false ->
+              COp = erl_syntax:module_qualifier(erl_syntax:atom(Mod), erl_syntax:atom(Fun)),
+              compile_static_app(COp, Arity, CArgs, Env)
+          end;
         not_found ->
-          % NOTE: Assuming if function was not previously defined, then it's going to be called
-          %       with the same number of arguments that it was defined.
-          COp = erl_syntax:module_qualifier(erl_syntax:atom(modname(Op)), erl_syntax:atom(Op)),
-          erl_syntax:application(COp, CArgs)
+          compile_runtime_app(Op, CArgs)
       end
   end;
 
@@ -253,6 +270,13 @@ compile_exp([Op | Args], Env) ->
   COp = compile_exp(Op, Env),
   CArgs = [compile_exp(Arg, Env) || Arg <- Args],
   compile_dynamic_app(COp, CArgs).
+
+compile_lambda(Var, Body, Env) ->
+  IsUnused = is_unused(Var, Body),
+  {EVar, Env2} = shen_erl_kl_env:store_var(Env, Var, IsUnused),
+  CBody = compile_exp(Body, Env2),
+  Clause = erl_syntax:clause([erl_syntax:variable(EVar)], [], [CBody]),
+  erl_syntax:fun_expr([Clause]).
 
 compile_dynamic_app(COp, []) -> % Freezed expression application
   erl_syntax:application(COp, []);
@@ -271,6 +295,35 @@ compile_static_app(COp, Arity, CArgs, Env) when Arity > length(CArgs) ->
 compile_static_app(COp, Arity, CArgs, Env) when Arity < length(CArgs) ->
   {StaticCArgs, DynamicCArgs} = lists:split(Arity, CArgs),
   compile_dynamic_app(compile_static_app(COp, Arity, StaticCArgs, Env), DynamicCArgs).
+
+compile_runtime_app(Op, CArgs) ->
+  COp = erl_syntax:module_qualifier(erl_syntax:atom(shen_erl_kl_compiler),
+                                    erl_syntax:atom(invoke)),
+  erl_syntax:application(COp, [erl_syntax:atom(Op), erl_syntax:list(CArgs)]).
+
+dynamic_eta_app(Exp) ->
+  dynamic_eta_app(Exp, []).
+
+dynamic_eta_app([lambda, Var, Body], Vars) when is_atom(Var) ->
+  dynamic_eta_app(Body, Vars ++ [Var]);
+dynamic_eta_app([Op | Args], Vars) when is_atom(Op), Vars =/= [] ->
+  PrefixLen = length(Args) - length(Vars),
+  %% PrefixLen = 0 is a lambda-table eta entry.  Keep that closure intact: it
+  %% is deliberately compiled just before a redefinition updates the live MFA.
+  case PrefixLen > 0 andalso lists:nthtail(PrefixLen, Args) =:= Vars of
+    true ->
+      case shen_erl_global_stores:get_mfa(Op) of
+        {ok, {Mod, _Fun, _Arity}} ->
+          case is_dynamic_function(Op, Mod) of
+            true -> {ok, Op, lists:sublist(Args, PrefixLen)};
+            false -> no
+          end;
+        not_found -> no
+      end;
+    false -> no
+  end;
+dynamic_eta_app(_Exp, _Vars) ->
+  no.
 
 %% Helper functions
 is_unused(Var, Var) ->
@@ -305,6 +358,10 @@ rand_modname(0, Acc) ->
   list_to_atom("_kl_" ++ Acc);
 rand_modname(N, Acc) ->
   rand_modname(N - 1, [rand:uniform(26) + 96 | Acc]).
+
+is_dynamic_function('shen.demod', _Mod) -> true;
+is_dynamic_function(_Op, Mod) ->
+  lists:prefix("_kl_", atom_to_list(Mod)).
 
 yields_boolean(true) -> true;
 yields_boolean(false) -> false;

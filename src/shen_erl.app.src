@@ -1,6 +1,6 @@
 {application, shen_erl,
  [{description, "Shen Erlang Port"},
-  {vsn, "0.0.1"},
+  {vsn, "0.1.0"},
   {applications, [kernel,
                   stdlib]},
   {modules, []},

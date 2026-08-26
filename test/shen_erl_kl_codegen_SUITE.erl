@@ -11,6 +11,7 @@
          t_compile_sum/1,
          t_compile_mult/1,
          t_compile_if/1,
+         t_compile_type/1,
          t_compile_freeze/1,
          t_compile_dynamic_app_lambda/1,
          t_compile_dynamic_app_var/1,
@@ -19,6 +20,7 @@
          t_compile_static_app/1,
          t_compile_static_app_less_params/1,
          t_compile_static_app_more_params/1,
+         t_compile_dynamic_eta_redefinition/1,
          t_compile_trap_error/1,
          t_compile_factorized_fun/1]).
 
@@ -35,6 +37,7 @@ groups() ->
      t_compile_sum,
      t_compile_mult,
      t_compile_if,
+     t_compile_type,
      t_compile_freeze,
      t_compile_dynamic_app_lambda,
      t_compile_dynamic_app_var,
@@ -43,6 +46,7 @@ groups() ->
      t_compile_static_app,
      t_compile_static_app_less_params,
      t_compile_static_app_more_params,
+     t_compile_dynamic_eta_redefinition,
      t_compile_trap_error,
      t_compile_factorized_fun]}].
 
@@ -105,6 +109,11 @@ t_compile_if(_Config) ->
   2 = kl:max(1.6, 2),
   2.2 = kl:max(2.2, 2.0).
 
+t_compile_type(_Config) ->
+  Typed = [defun, typed, ['X'], ['type', 'X', [[t, '-->', f], '-->', f]]],
+  compile_and_load([Typed]),
+  answer = kl:typed(answer).
+
 %% freeze
 t_compile_freeze(_Config) ->
   Lazy = [defun, 'lazy', ['X'], [freeze, ['+', 1, 2]]],
@@ -166,6 +175,21 @@ t_compile_static_app_more_params(_Config) ->
   3 = kl:sum(1, 2),
   0 = kl:sum(-1, 1).
 
+t_compile_dynamic_eta_redefinition(_Config) ->
+  Old = [defun, changeable, ['X', 'Y', 'Z'], ['+', ['+', 'X', 'Y'], 'Z']],
+  compile_and_load_as('_kl_changeable_old', [Old]),
+  %% Exact shape emitted by shen.lambda-function for a one-of-three partial
+  %% application while changeable/3 is live.
+  Eta = [lambda, 'Y1', [lambda, 'Y2', [changeable, 42, 'Y1', 'Y2']]],
+  {ok, eta_caller, CallerBin} = shen_erl_kl_codegen:compile(eta_caller, [Eta], ok),
+  code:load_binary(eta_caller, [], CallerBin),
+  Curried = eta_caller:kl_tle(),
+  47 = (Curried(2))(3),
+
+  New = [defun, changeable, ['X'], 'X'],
+  compile_and_load_as('_kl_changeable_new', [New]),
+  42 = eta_caller:kl_tle().
+
 t_compile_trap_error(_Config) ->
   Trapper = [defun, 'trapper', [], ['trap-error', ['/', 1, 0], [lambda, 'E', a]]],
   compile_and_load([Trapper]),
@@ -204,6 +228,9 @@ t_compile_factorized_fun(_Config) ->
 %%%===================================================================
 
 compile_and_load(Funs) ->
-  shen_erl_kl_codegen:load_defuns(kl, Funs),
-  {ok, kl, Bin} = shen_erl_kl_codegen:compile(kl, Funs, ok),
-  code:load_binary(kl, [], Bin).
+  compile_and_load_as(kl, Funs).
+
+compile_and_load_as(Mod, Funs) ->
+  shen_erl_kl_codegen:load_defuns(Mod, Funs),
+  {ok, Mod, Bin} = shen_erl_kl_codegen:compile(Mod, Funs, ok),
+  code:load_binary(Mod, [], Bin).

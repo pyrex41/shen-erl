@@ -6,8 +6,11 @@
 /src/shen_erl_kl_scan.erl
 /.erlang.mk
 /test/logs
+/test/*.beam
 /shen_erl.d
 /kl/
 /test/shen
 /.shen_erl.plt
 /ShenOSKernel-*
+/S41/
+/S41.2-*.zip

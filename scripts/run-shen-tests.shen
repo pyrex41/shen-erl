@@ -4,5 +4,4 @@
 \* ------------------------------------------------------------------- *\
 
 (do (cd "test/shen")
-    (load "README.shen")
-    (load "tests.shen"))
+    (load "runme.shen"))
