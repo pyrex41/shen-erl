@@ -22,3 +22,9 @@ the community ShenOSKernel 42.0 release. Its tarball is checksum-pinned to
 The launcher, features, and expand-dynamic extensions are booted; programmable
 pattern matching is included as an opt-in extension. The same community
 release supplies the official certification tests used by `make shen-tests`.
+
+The published S42 test corpus contains four assertions that fail identically
+in the pristine S42 Common Lisp reference port: one expects `update-lambda-table`
+to remove a stale `shen.lambda-form`, and three call the absent
+`shen.variancy-signature`. `scripts/run-shen-tests.sh` records these exact
+reference-parity failures while requiring the rest of the suite to complete.

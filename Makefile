@@ -118,7 +118,7 @@ test/shen: $(COMMUNITY_DISTDIR)
 
 .PHONY: shen-tests
 shen-tests: shen-kl test/shen
-	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --script scripts/run-shen-tests.shen
+	SHEN_ERL_ROOTDIR=$(BASE_DIR) sh scripts/run-shen-tests.sh
 
 ct: erlc-compile
 	@$(INSTALL_DIR) test/logs
