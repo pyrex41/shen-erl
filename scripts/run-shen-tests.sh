@@ -11,8 +11,10 @@ yes y | SHEN_ERL_ROOTDIR="${SHEN_ERL_ROOTDIR:-$(pwd)}" \
 cat "$log"
 
 grep -q '^stale returned$' "$log"
-test "$(grep -c "failed with error error:{undef,'shen.variancy-signature'}" "$log")" -eq 3
-test "$(grep -c '^failed ... 4$' "$log")" -ge 1
+variancy_failures=$(grep -F "failed with error error:{undef,'shen.variancy-signature'}" "$log" | wc -l | tr -d ' ')
+test "$variancy_failures" = 3
+total_failures=$(grep -E '^failed \.\.\. 4$' "$log" | wc -l | tr -d ' ')
+test "$total_failures" -ge 1
 
 # The harness reports exactly four failures (the stale lambda form plus the
 # three absent variancy-signature assertions).  Any other error is rejected.
@@ -20,4 +22,3 @@ if grep -E 'failed with error' "$log" | grep -vF "error:{undef,'shen.variancy-si
   echo "unexpected Shen certification failure" >&2
   exit 1
 fi
-
