@@ -1,15 +1,15 @@
 BASE_DIR = $(shell pwd)
 
-SHENVERSION = 41.2
-SHEN_REFRESH = 20260711
+SHENVERSION = 42.0
+SHEN_REFRESH = 20260825
 SHEN_ARCHIVE = S$(SHENVERSION)-$(SHEN_REFRESH).zip
-SHEN_ARCHIVE_URL = https://www.shenlanguage.org/Download/S41.2.zip
-SHEN_ARCHIVE_SHA256 = 51becbfd60fa8c93c3f8ae5b20b948eaa84c4b1d14ad2f5d2a056002a53ee836
-SHEN_DISTDIR = S41
+SHEN_ARCHIVE_URL = https://www.shenlanguage.org/Download/S42.zip
+SHEN_ARCHIVE_SHA256 = 30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23
+SHEN_DISTDIR = S42
 
 COMMUNITY_ARCHIVE = ShenOSKernel-$(SHENVERSION).tar.gz
 COMMUNITY_ARCHIVE_URL = https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/$(COMMUNITY_ARCHIVE)
-COMMUNITY_ARCHIVE_SHA256 = d2182d70453d3e93d13bc20f763efdc18cdb23b481f41afb9943f5e9a0798f61
+COMMUNITY_ARCHIVE_SHA256 = 32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8f8e35
 COMMUNITY_DISTDIR = ShenOSKernel-$(SHENVERSION)
 
 INSTALL = install
@@ -42,9 +42,9 @@ EXE ?= shen-erl
 .DEFAULT: all
 all: shen-kl
 
-## Shen sources.  The kernel proper is Mark Tarver's refreshed S41.2 upload;
+## Shen sources.  The kernel proper is Mark Tarver's refreshed S42 upload;
 ## the portable launcher/features extensions and certification tests come from
-## the community ShenOSKernel 41.2 release, matching the other maintained ports.
+## the community ShenOSKernel 42.0 release, matching the other maintained ports.
 $(SHEN_ARCHIVE):
 	curl -fL '$(SHEN_ARCHIVE_URL)' -o $@
 	printf '%s  %s\n' '$(SHEN_ARCHIVE_SHA256)' '$@' | shasum -a 256 -c
@@ -118,7 +118,7 @@ test/shen: $(COMMUNITY_DISTDIR)
 
 .PHONY: shen-tests
 shen-tests: shen-kl test/shen
-	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --script scripts/run-shen-tests.shen
+	SHEN_ERL_ROOTDIR=$(BASE_DIR) sh scripts/run-shen-tests.sh
 
 ct: erlc-compile
 	@$(INSTALL_DIR) test/logs

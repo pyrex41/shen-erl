@@ -19,7 +19,7 @@
 -dialyzer({nowarn_function, [load/1, eval/1, eval_kl/1, start_repl/0, load_funs/0]}).
 
 %% Macros
-%% Tarver's refreshed S41.2 kernel has no shen.initialise function.  Its
+%% Tarver's refreshed S42 kernel has no shen.initialise function.  Its
 %% top-level initialisation forms must run in the order used by install.lsp.
 %% The community launcher/features extensions remain compatible and are loaded
 %% after the kernel proper, as in the other maintained ports.
