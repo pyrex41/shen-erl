@@ -113,12 +113,13 @@ shen-kl: $(EXE) $(KLSRCDIR)
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --kl $(addprefix $(KLSRCDIR)/, $(KL_SRCS)) --output-dir $(EBINDIR)
 
 ## Tests
-test/shen: $(COMMUNITY_DISTDIR)
-	cp -r $(COMMUNITY_DISTDIR)/tests test/shen
+test/shen: $(SHEN_DISTDIR)
+	mkdir -p test
+	cp -R '$(SHEN_DISTDIR)/Test Programs' test/shen
 
 .PHONY: shen-tests
 shen-tests: shen-kl test/shen
-	SHEN_ERL_ROOTDIR=$(BASE_DIR) sh scripts/run-shen-tests.sh
+	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --script scripts/run-shen-tests.shen
 
 ct: erlc-compile
 	@$(INSTALL_DIR) test/logs
