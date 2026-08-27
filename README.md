@@ -1,7 +1,7 @@
 # shen-erl
 
-`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 41.2 and
-boots Mark Tarver's refreshed S41.2 kernel (the 2026-07-11 upload), together
+`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 42.0 and
+boots Mark Tarver's refreshed S42 kernel (the 2026-08-25 upload), together
 with the portable launcher and feature extensions shared by the other
 maintained Shen ports. See [KERNEL.md](KERNEL.md) for exact provenance.
 
@@ -52,7 +52,7 @@ make docker-dialyze
 make shen-tests
 ```
 
-This runs the official ShenOSKernel 41.2 certification suite.
+This runs the official ShenOSKernel 42.0 certification suite.
 ## Optional Nix environment
 
 Nix is optional; the normal shen-erl build and launcher commands continue to work
