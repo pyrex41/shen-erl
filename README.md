@@ -70,6 +70,43 @@ An Erlang exception inside `erl.apply` becomes an ordinary Shen error, which
 `trap-error` can catch. The functions have no type signatures, because their
 results are untyped. Under `(tc +)`, `declare` the specific uses you need.
 
+## JSON
+
+`json.parse` and `json.stringify` use OTP's `json` module. Parsed JSON is
+ordinary Shen data:
+
+| JSON | Shen |
+| --- | --- |
+| object | `[json.object [Key \| Value] ...]`: string keys, in document order |
+| array | list |
+| string | string |
+| number | number (integers stay integers) |
+| `true` / `false` | `true` / `false` |
+| `null` | the symbol `null` |
+
+The `json.object` tag keeps `{}` distinct from `[]`, and it keeps an object
+distinct from an array of pairs. `json.stringify` accepts the same
+representation. It also accepts symbols as object keys, and it encodes symbols
+other than `null`, `true` and `false` as strings. Its output is compact
+JSON. Invalid input raises a Shen error.
+
+```shen
+(json.parse "[1, 2.5, null]")                    \\ [1 2.5 null]
+(json.stringify [json.object [name | "shen"]])   \\ "{\"name\":\"shen\"}"
+(json.get Obj "key")                             \\ value, or an error if missing
+(json.get Array 0)                               \\ elements are counted from 0
+(json.object? X)
+```
+
+### ShenScript compatibility
+
+`(js.get Obj Key)` and `(js.truthy? X)` are provided for specs written
+against ShenScript's JSON interop. `js.get` works like `json.get`, but it
+returns the symbol `undefined` for a missing key or index.
+`js.truthy?` follows JavaScript truthiness: `false`, `null`, `undefined`, `0`
+and `""` are falsy. Everything else is truthy, including empty arrays and
+objects.
+
 ## Erlang tests
 
 Erlang tests can be run locally with `make ct`, or through Docker:

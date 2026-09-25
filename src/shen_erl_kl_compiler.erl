@@ -41,11 +41,12 @@
                   'kl_extension-expand-dynamic',
                   'kl_extension-launcher']).
 
-%% Port-provided library functions that Shen code calls by name (erl.*).
+%% Port-provided library functions that Shen code calls by name (erl.*,
+%% json.*, and the js.* ShenScript compatibility shims).
 %% They are bound in the function store by shen_erl_global_stores; boot also
 %% enters them in the kernel's arity and lambda tables so that fn, partial
 %% application and the top-level evaluator recognise them.
--define(PORT_SHEN_MODS, [shen_erl_kl_extensions]).
+-define(PORT_SHEN_MODS, [shen_erl_kl_extensions, shen_erl_kl_json]).
 -define(PORT_INTERNAL_FUNS, ['assert-boolean', module_info]).
 
 %% Types

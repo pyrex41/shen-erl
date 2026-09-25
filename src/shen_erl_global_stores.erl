@@ -34,7 +34,8 @@
 -define(START_TIME_KEY, '__kl_start_time').
 
 -define(PORT_KL_MODS, [shen_erl_kl_primitives,
-                       shen_erl_kl_extensions]).
+                       shen_erl_kl_extensions,
+                       shen_erl_kl_json]).
 -define(PORT_KL_NON_OVERRIDABLE_MODS, [shen_erl_kl_overrides]).
 
 -opaque dict() :: atom().
