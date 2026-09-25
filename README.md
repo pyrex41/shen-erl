@@ -36,6 +36,40 @@ bin/shen-erl                 # REPL; EOF exits cleanly
 
 Run `bin/shen-erl --help` for the complete launcher help.
 
+## Erlang interop
+
+Shen code can call Erlang directly:
+
+```shen
+(erl.apply string uppercase ["abc"])        \\ "ABC"
+(erl.apply file read_file ["missing"])      \\ [error enoent]
+(erl.send (erl.apply erlang self []) [ping "x"])
+(erl.receive 1000)                          \\ [ping "x"], or timeout
+```
+
+| Function | Arity | Meaning |
+| --- | --- | --- |
+| `(erl.apply Mod Fun Args)` | 3 | `Mod:Fun(Args...)`; `Mod` and `Fun` are symbols |
+| `(erl.send Dest Msg)` | 2 | `Dest ! Msg`; returns `Msg` |
+| `(erl.receive Timeout)` | 1 | next message, waiting up to `Timeout` ms (or `infinity`); `timeout` if none |
+| `(erl.tuple [X ...])` | 1 | an Erlang tuple, for APIs that take one |
+
+These are ordinary Shen functions, so they work with partial application and
+`fn`. Values are converted at the boundary:
+
+- **Shen to Erlang:** strings become UTF-8 binaries, and lists become lists.
+  Numbers, symbols (atoms) and booleans pass through unchanged. For an API
+  that needs a charlist, pass a list of code points, e.g.
+  `(map (function string->n) (explode S))`.
+- **Erlang to Shen:** UTF-8 binaries become strings, and other binaries become
+  byte lists. Lists become lists. Tuples become lists (`{ok, X}` becomes
+  `[ok X]`), so this direction loses the tuple type. Maps, pids, references
+  and funs stay opaque. You can pass them back to Erlang.
+
+An Erlang exception inside `erl.apply` becomes an ordinary Shen error, which
+`trap-error` can catch. The functions have no type signatures, because their
+results are untyped. Under `(tc +)`, `declare` the specific uses you need.
+
 ## Erlang tests
 
 Erlang tests can be run locally with `make ct`, or through Docker:

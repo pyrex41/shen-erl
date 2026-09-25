@@ -160,7 +160,10 @@ str({vector, Length, Vec}) ->
 str({dict, Dict}) ->
   {string, lists:flatten(io_lib:format("DICTIONARY: ~p", [Dict]))};
 str([]) ->
-  {string, "[]"}.
+  {string, "[]"};
+%% Opaque Erlang terms reached through erl.* interop (tuples, maps, refs...).
+str(Val) ->
+  {string, lists:flatten(io_lib:format("~0p", [Val]))}.
 
 %% cn
 cn({string, Str1}, {string, Str2}) -> {string, Str1 ++ Str2}.
