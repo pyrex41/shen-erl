@@ -41,6 +41,14 @@
                   'kl_extension-expand-dynamic',
                   'kl_extension-launcher']).
 
+%% Port-provided library functions that Shen code calls by name (erl.*,
+%% json.*, and the js.* ShenScript compatibility shims).
+%% They are bound in the function store by shen_erl_global_stores; boot also
+%% enters them in the kernel's arity and lambda tables so that fn, partial
+%% application and the top-level evaluator recognise them.
+-define(PORT_SHEN_MODS, [shen_erl_kl_extensions, shen_erl_kl_json]).
+-define(PORT_INTERNAL_FUNS, ['assert-boolean', module_info]).
+
 %% Types
 -type opt() :: {output_dir, string()}.
 
@@ -85,6 +93,7 @@ boot_shaken(Modules = [Kernel | _]) ->
   register_modules(Modules),
   Kernel:kl_tle(),
   invoke('shen.initialise', []),
+  register_port_functions(),
   ok.
 
 -spec run_shaken([module()]) -> ok.
@@ -117,7 +126,35 @@ load_funs() ->
   %% refers to the removed shen.set-lambda-form-entry API.  Its stable public
   %% current/add operations only require this backing global.
   shen_erl_kl_primitives:set('shen.x.features.*features*', []),
+  register_port_functions(),
   ok.
+
+%% Equivalent to (update-lambda-table Name Arity) for each port function, but
+%% builds the curried entry directly instead of compiling one module per
+%% function at every boot.
+register_port_functions() ->
+  case {shen_erl_global_stores:get_mfa(put), shen_erl_global_stores:get_val('shen.*lambdatable*')} of
+    {{ok, _}, {ok, Table0}} ->
+      PropVector = shen_erl_kl_primitives:value('*property-vector*'),
+      Entries = [begin
+                   invoke(put, [Name, arity, Arity, PropVector]),
+                   [Name | curry(Mod, Name, Arity, [])]
+                 end || Mod <- ?PORT_SHEN_MODS,
+                        {Name, Arity} <- Mod:module_info(exports),
+                        not lists:member(Name, ?PORT_INTERNAL_FUNS),
+                        Arity > 0],
+      shen_erl_kl_primitives:set('shen.*lambdatable*', Entries ++ Table0),
+      ok;
+    _ ->
+      %% Stripped (shaken) kernels may omit the tables; direct calls still
+      %% resolve through the function store.
+      ok
+  end.
+
+curry(Mod, Fun, Arity, Args) when length(Args) + 1 =:= Arity ->
+  fun(Arg) -> erlang:apply(Mod, Fun, lists:reverse([Arg | Args])) end;
+curry(Mod, Fun, Arity, Args) ->
+  fun(Arg) -> curry(Mod, Fun, Arity, [Arg | Args]) end.
 
 register_modules(Modules) ->
   [[shen_erl_global_stores:set_mfa(FunName, {Mod, FunName, Arity}) ||
