@@ -1,9 +1,9 @@
 # shen-erl
 
-`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 42.0 and
-boots Mark Tarver's refreshed S42 kernel (the 2026-08-25 upload), together
-with the portable launcher and feature extensions shared by the other
-maintained Shen ports. See [KERNEL.md](KERNEL.md) for exact provenance.
+`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 42.2 and
+boots the community ShenOSKernel 42.2 release unmodified, including the
+portable launcher and feature extensions shared by the other maintained Shen
+ports. See [KERNEL.md](KERNEL.md) for exact provenance.
 
 The project began as a fork of Sebastian Borrazas's original Erlang port and
 retains that work as its foundation. This repository independently maintains
@@ -11,14 +11,15 @@ the current runtime, compiler integration, launcher, and Shen compatibility.
 
 ## Building
 
-Building requires Erlang/OTP 27 or newer, a C compiler, `curl`, `unzip`, `tar`,
-and `shasum`:
+Building requires Erlang/OTP 27 or newer, a C compiler, `curl`, `tar`, and
+`shasum`:
 
 ```sh
 make
 ```
 
-The build downloads checksum-pinned kernel archives, compiles the KLambda
+The build downloads the checksum-pinned kernel archive (or uses
+`SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-42.2.tar.gz`), compiles the KLambda
 modules to BEAM, and writes `bin/shen-erl`. The launcher locates its `ebin`
 directory automatically; `SHEN_ERL_ROOTDIR` remains available as an override.
 
@@ -123,7 +124,7 @@ make docker-dialyze
 make shen-tests
 ```
 
-This runs the official ShenOSKernel 42.0 certification suite.
+This runs the ShenOSKernel 42.2 kernel test suite (143 tests).
 ## Optional Nix environment
 
 Nix is optional; the normal shen-erl build and launcher commands continue to work

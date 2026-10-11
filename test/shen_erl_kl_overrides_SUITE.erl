@@ -8,7 +8,9 @@
          init_per_testcase/2,
          end_per_testcase/2,
          t_dict_missing_key/1,
-         t_cd_empty_string/1]).
+         t_cd_empty_string/1,
+         t_dict_fold/1,
+         t_numeric_equality/1]).
 
 -include_lib("common_test/include/ct.hrl").
 
@@ -20,7 +22,9 @@ groups() ->
   [{overrides,
     [],
     [t_dict_missing_key,
-     t_cd_empty_string]}].
+     t_cd_empty_string,
+     t_dict_fold,
+     t_numeric_equality]}].
 
 suite() ->
   [{timetrap, {minutes, 1}}].
@@ -66,3 +70,24 @@ t_cd_empty_string(_Config) ->
   {ok, Cwd} = file:get_cwd(),
   shen_erl_kl_primitives:set('*home-directory*', {string, Cwd}),
   ok = shen_erl_kl_overrides:'cd'({string, ""}).
+
+%% ShenOSKernel's dict.kl calls (shen.dict-fold F Dict Init) with a curried
+%% Key -> Value -> Acc function.
+t_dict_fold(_Config) ->
+  D = shen_erl_kl_overrides:'shen.dict'(10),
+  shen_erl_kl_overrides:'shen.dict->'(D, a, 1),
+  shen_erl_kl_overrides:'shen.dict->'(D, b, 2),
+  F = fun(K) -> fun(V) -> fun(Acc) -> [{K, V} | Acc] end end end,
+  [{a, 1}, {b, 2}] = lists:sort(shen_erl_kl_overrides:'shen.dict-fold'(F, D, [])),
+  [a, b] = lists:sort(shen_erl_kl_overrides:'shen.dict-keys'(D)).
+
+%% Equal values hash equal; integral floats are integers.
+t_numeric_equality(_Config) ->
+  true = shen_erl_kl_primitives:'='(1, 1.0),
+  true = shen_erl_kl_primitives:'='([1, {string, "a"}], [1.0, {string, "a"}]),
+  false = shen_erl_kl_primitives:'='(1, 2),
+  H = shen_erl_kl_overrides:hash(1, 1009),
+  H = shen_erl_kl_overrides:hash(1.0, 1009),
+  true = H >= 1,
+  true = shen_erl_kl_overrides:'integer?'(4.0),
+  false = shen_erl_kl_overrides:'integer?'(4.5).
