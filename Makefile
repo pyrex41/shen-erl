@@ -1,26 +1,23 @@
 BASE_DIR = $(shell pwd)
 
-SHENVERSION = 42.0
-SHEN_REFRESH = 20260825
-SHEN_DISTDIR = S42
+SHENVERSION = 42.2
 
-## Primary kernel source: the canonical mirror, pinned by commit and checksum.
-SHEN_MIRROR_REPO = pyrex41/shen-upstream
-SHEN_MIRROR_TAG = s42-pristine-$(SHEN_REFRESH)
-SHEN_MIRROR_COMMIT = 28825a211f5b2fb952510dab17267ca8eb9594a0
-SHEN_MIRROR_ARCHIVE = shen-upstream-$(SHEN_MIRROR_TAG).tar.gz
-SHEN_MIRROR_URL = https://codeload.github.com/$(SHEN_MIRROR_REPO)/tar.gz/$(SHEN_MIRROR_COMMIT)
-SHEN_MIRROR_SHA256 = c2e46b924b30ac3743058b75bc2a6f66c9fcfa317511fd4a96a78390830044e1
+## The kernel: the community ShenOSKernel release from Shen-Language/shen-sources,
+## used wholesale and pinned by checksum (see KERNEL.md).  Set
+## SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-42.2.tar.gz to use a local copy.
+KERNEL_DISTDIR = ShenOSKernel-$(SHENVERSION)
+KERNEL_ARCHIVE = $(KERNEL_DISTDIR).tar.gz
+KERNEL_URL = https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/$(KERNEL_ARCHIVE)
+KERNEL_SHA256 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8
 
-## Fallback only: Tarver's upload, used solely when its checksum matches.
-SHEN_ARCHIVE = S$(SHENVERSION)-$(SHEN_REFRESH).zip
-SHEN_ARCHIVE_URL = https://www.shenlanguage.org/Download/S42.zip
-SHEN_ARCHIVE_SHA256 = d86aff3232da5870719d7d2f6bdfe27f3d12f3a93335f5492224ce6062c0f6ff
-
-COMMUNITY_ARCHIVE = ShenOSKernel-$(SHENVERSION).tar.gz
-COMMUNITY_ARCHIVE_URL = https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/$(COMMUNITY_ARCHIVE)
-COMMUNITY_ARCHIVE_SHA256 = 32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8f8e35
-COMMUNITY_DISTDIR = ShenOSKernel-$(SHENVERSION)
+## Kernel modules compiled to BEAM.  stlib.kl (the precompiled standard
+## library) is not booted.  The namespaces and type-annotations extensions are
+## compiled but, like programmable pattern matching, are not booted.
+KERNEL_KL = core declarations dict init load macros prolog reader sequent \
+	sys t-star toplevel track types writer yacc \
+	extension-expand-dynamic extension-features extension-launcher \
+	extension-namespaces extension-programmable-pattern-matching \
+	extension-type-annotations
 
 INSTALL = install
 INSTALL_DIR = $(INSTALL) -m755 -d
@@ -41,7 +38,7 @@ BINS = $(CSRCS:.c=)
 ESRCS = $(notdir $(wildcard $(SRCDIR)/*.erl))
 EBINS = $(ESRCS:.erl=.beam)
 
-KL_SRCS = $(notdir $(wildcard $(KLSRCDIR)/*.kl))
+KL_SRCS = $(addsuffix .kl, $(KERNEL_KL))
 
 ERLCFLAGS = -W1 +debug_info
 ERLC = erlc
@@ -52,32 +49,20 @@ EXE ?= shen-erl
 .DEFAULT: all
 all: shen-kl
 
-## Shen sources.  The kernel proper and certification tests are Mark Tarver's
-## refreshed S42 distribution, fetched from the checksum-pinned canonical
-## mirror (see KERNEL.md); the portable launcher/features extensions come from
-## the community ShenOSKernel 42.0 release, matching the other maintained ports.
-$(SHEN_DISTDIR):
-	MIRROR_URL='$(SHEN_MIRROR_URL)' \
-	MIRROR_ARCHIVE='$(SHEN_MIRROR_ARCHIVE)' \
-	MIRROR_SHA256='$(SHEN_MIRROR_SHA256)' \
-	UPSTREAM_URL='$(SHEN_ARCHIVE_URL)' \
-	UPSTREAM_ARCHIVE='$(SHEN_ARCHIVE)' \
-	UPSTREAM_SHA256='$(SHEN_ARCHIVE_SHA256)' \
-	DESTDIR='$(SHEN_DISTDIR)' \
+## Shen sources: ShenOSKernel, fetched and checksum-verified by
+## scripts/fetch-kernel.sh (see KERNEL.md).
+$(KERNEL_DISTDIR):
+	KERNEL_URL='$(KERNEL_URL)' \
+	KERNEL_ARCHIVE='$(KERNEL_ARCHIVE)' \
+	KERNEL_SHA256='$(KERNEL_SHA256)' \
+	DESTDIR='$(KERNEL_DISTDIR)' \
+	SHEN_KERNEL_ARCHIVE='$(SHEN_KERNEL_ARCHIVE)' \
 	sh scripts/fetch-kernel.sh
 
-$(COMMUNITY_ARCHIVE):
-	curl -fL '$(COMMUNITY_ARCHIVE_URL)' -o $@
-	printf '%s  %s\n' '$(COMMUNITY_ARCHIVE_SHA256)' '$@' | shasum -a 256 -c
-
-$(COMMUNITY_DISTDIR): $(COMMUNITY_ARCHIVE)
-	tar xzf $(COMMUNITY_ARCHIVE)
-	touch $(COMMUNITY_DISTDIR)
-
-$(KLSRCDIR): $(SHEN_DISTDIR) $(COMMUNITY_DISTDIR)
+$(KLSRCDIR): $(KERNEL_DISTDIR)
+	rm -rf $(KLSRCDIR)
 	mkdir -p $(KLSRCDIR)
-	cp $(SHEN_DISTDIR)/KLambda/*.kl $(KLSRCDIR)
-	cp $(COMMUNITY_DISTDIR)/klambda/extension-*.kl $(KLSRCDIR)
+	cp $(addprefix $(KERNEL_DISTDIR)/klambda/, $(addsuffix .kl, $(KERNEL_KL))) $(KLSRCDIR)
 	touch $(KLSRCDIR)
 
 ## Compile C files
@@ -100,8 +85,7 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	rm -rf $(SHEN_DISTDIR) $(SHEN_ARCHIVE) $(SHEN_MIRROR_ARCHIVE)
-	rm -rf $(COMMUNITY_DISTDIR) $(COMMUNITY_ARCHIVE)
+	rm -rf $(KERNEL_DISTDIR) $(KERNEL_ARCHIVE) $(KERNEL_ARCHIVE).part
 	rm -rf $(KLSRCDIR)
 	rm -f $(SRCDIR)/shen_erl_kl_scan.erl $(SRCDIR)/shen_erl_kl_parse.erl
 	rm -f .*.plt
@@ -126,9 +110,9 @@ shen-kl: $(EXE) $(KLSRCDIR)
 	SHEN_ERL_ROOTDIR=$(BASE_DIR) $(BINDIR)/$(EXE) --kl $(addprefix $(KLSRCDIR)/, $(KL_SRCS)) --output-dir $(EBINDIR)
 
 ## Tests
-test/shen: $(SHEN_DISTDIR)
+test/shen: $(KERNEL_DISTDIR)
 	mkdir -p test
-	cp -R '$(SHEN_DISTDIR)/Test Programs' test/shen
+	cp -R '$(KERNEL_DISTDIR)/tests' test/shen
 
 .PHONY: shen-tests
 shen-tests: shen-kl test/shen

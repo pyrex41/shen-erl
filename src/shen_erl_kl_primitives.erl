@@ -262,10 +262,23 @@ close(Stream) ->
   [].
 
 %% =
+%% Numbers compare by value, so 1 and 1.0 are equal.  Lists and absvectors
+%% (including tuples, which are absvectors) compare element by element.
+'='(Val1, Val2) when is_number(Val1), is_number(Val2) ->
+  Val1 == Val2;
+'='([H1 | T1], [H2 | T2]) ->
+  '='(H1, H2) andalso '='(T1, T2);
+'='({vector, Length, Vec1}, {vector, Length, Vec2}) ->
+  Vec1 =:= Vec2 orelse vector_equal(Vec1, Vec2, Length - 1);
 '='(Val1, Val2) ->
   Val1 =:= Val2.
 
 %% eval-kl
+%% Anything other than an application is self-evaluating: symbols, numbers,
+%% strings, () and host objects such as the absvector shen.fn-print returns
+%% for a (define ...) evaluated at the top level.
+'eval-kl'(KlCode) when not is_list(KlCode); KlCode =:= [] ->
+  KlCode;
 'eval-kl'(KlCode) ->
   KlCode2 =
     case module_loaded('kl_extension-factorise-defun') of
@@ -288,9 +301,28 @@ type(Val, _Hint) -> Val.
 %%% Internal functions
 %%%===================================================================
 
+vector_equal(_Vec1, _Vec2, Index) when Index < 0 -> true;
+vector_equal(Vec1, Vec2, Index) ->
+  case {shen_erl_global_stores:dict_get(Vec1, Index),
+        shen_erl_global_stores:dict_get(Vec2, Index)} of
+    {{ok, A}, {ok, B}} -> '='(A, B) andalso vector_equal(Vec1, Vec2, Index - 1);
+    {not_found, not_found} -> vector_equal(Vec1, Vec2, Index - 1);
+    _ -> false
+  end.
+
+%% Reads from standard input return -1 at EOF, so the reader still processes a
+%% final line without a trailing newline (ShenOSKernel 42.1+).  In the REPL
+%% the first EOF is reported as -1 and remembered; the REPL loop exits when
+%% the kernel then reports an empty stream, and any later read at EOF exits.
 maybe_exit_on_repl_eof(standard_io) ->
   case shen_erl_global_stores:get_val('__shen_erl_exit_on_eof') of
-    {ok, true} -> erlang:halt(0);
+    {ok, true} ->
+      case shen_erl_global_stores:get_val('__shen_erl_stdin_eof') of
+        {ok, true} -> erlang:halt(0);
+        _ ->
+          shen_erl_global_stores:set_val('__shen_erl_stdin_eof', true),
+          -1
+      end;
     _ -> -1
   end;
 maybe_exit_on_repl_eof(_Stream) -> -1.

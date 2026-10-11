@@ -1,52 +1,75 @@
 # Kernel provenance
 
-`shen-erl` targets Shen **42.0**, specifically Mark Tarver's refreshed S42
-distribution uploaded on 2026-08-25.
+`shen-erl` targets Shen **42.2**: the community **ShenOSKernel 42.2** release
+from [`Shen-Language/shen-sources`](https://github.com/Shen-Language/shen-sources),
+used wholesale and unmodified. This is the kernel that upstream shen-scheme
+0.50 ships, so `shen-erl` and shen-scheme run byte-identical KLambda.
 
 ## Where the build gets it
 
-The build fetches the kernel from the canonical mirror, pinned by commit and
-checksum:
+`scripts/fetch-kernel.sh` (driven by the `Makefile`) downloads the release
+asset and verifies its checksum before unpacking anything:
 
-- Canonical mirror: `pyrex41/shen-upstream`, tag
-  `s42-pristine-20260825` (annotated tag object
-  `8104a3ce0e35c3405fe299b9b25de75adb308ef6`, peeled commit
-  `28825a211f5b2fb952510dab17267ca8eb9594a0`)
-- Fetched as
-  `https://codeload.github.com/pyrex41/shen-upstream/tar.gz/28825a211f5b2fb952510dab17267ca8eb9594a0`
-  (the commit, not the tag, so moving the tag cannot change the input)
-- Tarball SHA-256:
-  `c2e46b924b30ac3743058b75bc2a6f66c9fcfa317511fd4a96a78390830044e1`
+- Release: tag `shen-42.2`, commit `73507e069fe147aefb728d632c4ce40bc6a7b314`
+- Asset:
+  `https://github.com/Shen-Language/shen-sources/releases/download/shen-42.2/ShenOSKernel-42.2.tar.gz`
+- SHA-256: `1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8`
+  (the checksum pinned in shen-scheme 0.50's `Makefile`)
 
-If the mirror cannot be downloaded or fails its checksum,
-`scripts/fetch-kernel.sh` falls back to Tarver's upload. It uses that upload
-only when its checksum matches the pinned value. If neither source matches,
-the build stops. Nothing is unpacked until a checksum has matched.
+To build offline, point `SHEN_KERNEL_ARCHIVE` at a local copy of the same
+tarball:
 
-- Upstream archive (fallback): `https://www.shenlanguage.org/Download/S42.zip`
-- SHA-256: `d86aff3232da5870719d7d2f6bdfe27f3d12f3a93335f5492224ce6062c0f6ff`
+```sh
+SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-42.2.tar.gz make
+```
 
-Upstream replaces `S42.zip` in place, without changing its version.
-The original 2026-08-25 upload had SHA-256
-`30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23`. It was
-replaced by the `d86aff32…` archive, which reorganizes only `Lib/LogicLab`.
-Its `KLambda` and `Test Programs` directories are byte-identical to the mirror
-tag. Primary fetches from the mirror keep future re-uploads from breaking or
-silently changing builds. When upstream re-uploads again, compare the new
-archive's `KLambda` against the mirror. If only the checksum has changed,
-update `SHEN_ARCHIVE_SHA256` in the `Makefile`.
+The local archive must match the same SHA-256. If the download or the local
+archive fails the checksum, the build stops.
 
-## What the kernel is
+## Lineage
 
-The 15 `.kl` files under the `KLambda` directory are the kernel proper.
-This refreshed S-series kernel is a different lineage from the community
-`ShenOSKernel-42.0`: it has `backend.kl`, no `dict.kl` or `init.kl`, and performs
-initialisation through load-ordered top-level forms rather than a
-`shen.initialise` function.
+Until this release `shen-erl` booted Mark Tarver's refreshed S42.0 upload
+(mirror `pyrex41/shen-upstream`, tag `s42-pristine-20260825`). 42.1 and 42.2
+are releases of the community line, which is structured differently. The
+ports tracked in pyrex41/bifrost#26 chose to adopt ShenOSKernel 42.2 wholesale
+rather than port its changes onto the Tarver base.
 
-The build additionally copies the four portable `extension-*.kl` files from
-the community ShenOSKernel 42.0 release. Its tarball is checksum-pinned to
-`32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8f8e35`.
-The launcher, features, and expand-dynamic extensions are booted; programmable
-pattern matching is included as an opt-in extension. Certification tests are
-copied directly from the kernel distribution's `Test Programs` directory.
+Differences that matter to this port:
+
+- Every `.kl` file contains only `defun`s. `init.kl` defines
+  `shen.initialise`, which builds the global environment. Boot loads all
+  modules, then calls `(shen.initialise)`, registers the port's own
+  functions, and initialises the features and expand-dynamic extensions
+  (`shen_erl_kl_compiler:load_funs/0`).
+- Properties live in a `dict.kl` dictionary held in `*property-vector*`.
+  Arities and lambda forms are the `arity` and `shen.lambda-form` properties;
+  there is no `shen.*lambdatable*`. Port functions (`erl.*`, `json.*`,
+  `js.*`) are registered there so that `fn`, `arity` and partial application
+  see them. The dictionary primitives are overridden by ETS-backed versions in
+  `shen_erl_kl_overrides`.
+- The REPL entry point is `shen.repl`. Standard input returns -1 at EOF, so
+  a final line without a trailing newline is still read (42.1).
+
+The port does not override `macroexpand`, `shen.macroexpand-h`, the reader or
+`shen.try-parse`, so the 42.1 source-form handler changes need no port code.
+
+## What is built
+
+`kl/` receives these files from `klambda/`:
+
+- The kernel proper: `core`, `declarations`, `dict`, `init`, `load`,
+  `macros`, `prolog`, `reader`, `sequent`, `sys`, `t-star`, `toplevel`,
+  `track`, `types`, `writer`, `yacc`.
+- Booted extensions: `extension-features`, `extension-expand-dynamic`,
+  `extension-launcher`.
+- Compiled but not booted: `extension-namespaces`,
+  `extension-programmable-pattern-matching`, `extension-type-annotations`.
+
+The precompiled standard library (`klambda/stlib.kl`) is not built or booted.
+Running `stlib.initialise` on every launch would add about three seconds to
+start-up on BEAM. shen-scheme 0.50 does boot it, so StLib functions such as
+`expt` are undefined here, and StLib's names (for example `g`) are not
+protected as system functions.
+
+`make shen-tests` copies the release's `tests/` directory to `test/shen` and
+runs its `runme.shen` (143 tests).

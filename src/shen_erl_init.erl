@@ -68,21 +68,26 @@ run([]) ->
   init:stop(?OK_STATUS);
 run(["--eval", Code | _Args]) ->
   %% Compatibility with the dormant port's original command line.
-  'kl_extension-launcher':'shen.x.launcher.main'([{string, "shen-erl"},
-                                                  {string, "eval"},
-                                                  {string, "-e"},
-                                                  {string, Code}]),
-  init:stop(?OK_STATUS);
+  launch([{string, "shen-erl"}, {string, "eval"}, {string, "-e"}, {string, Code}]);
 run(["--script", Filename | _Args]) ->
   %% Compatibility with the dormant port's original command line.
-  'kl_extension-launcher':'shen.x.launcher.main'([{string, "shen-erl"},
-                                                  {string, "script"},
-                                                  {string, Filename}]),
-  init:stop(?OK_STATUS);
+  launch([{string, "shen-erl"}, {string, "script"}, {string, Filename}]);
 run(Args) ->
   ShenArgs = [{string, Arg} || Arg <- ["shen-erl" | Args]],
-  'kl_extension-launcher':'shen.x.launcher.main'(ShenArgs),
-  init:stop(?OK_STATUS).
+  launch(ShenArgs).
+
+%% An error that escapes the launcher (for example an uncaught error in
+%% `eval -e` or a script) is reported on stderr with a non-zero exit status,
+%% instead of crashing the runtime during boot with an Erlang crash dump.
+launch(ShenArgs) ->
+  try 'kl_extension-launcher':'shen.x.launcher.main'(ShenArgs) of
+    _ -> init:stop(?OK_STATUS)
+  catch
+    Class:Reason ->
+      {string, Message} = shen_erl_kl_primitives:'error-to-string'({Class, Reason}),
+      io:put_chars(standard_error, string:trim(Message, trailing, "\n") ++ "\n"),
+      erlang:halt(?ERROR_STATUS)
+  end.
 
 parse_opts(Args) ->
   parse_opts(Args, {[], []}).

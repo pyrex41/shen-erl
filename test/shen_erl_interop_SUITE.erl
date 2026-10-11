@@ -19,7 +19,8 @@
          t_shen_erl_apply/1,
          t_shen_partial_application/1,
          t_shen_send_receive/1,
-         t_shen_trap_error/1]).
+         t_shen_trap_error/1,
+         t_shen_kernel_42_2/1]).
 
 -include_lib("common_test/include/ct.hrl").
 
@@ -41,7 +42,8 @@ groups() ->
                t_shen_erl_apply,
                t_shen_partial_application,
                t_shen_send_receive,
-               t_shen_trap_error]}].
+               t_shen_trap_error,
+               t_shen_kernel_42_2]}].
 
 suite() ->
   [{timetrap, {minutes, 2}}].
@@ -154,6 +156,18 @@ t_shen_registered(_Config) ->
   1 = shen("(arity erl.receive)"),
   1 = shen("(arity erl.tuple)"),
   true = is_function(shen("(fn erl.apply)")).
+
+%% Boot runs ShenOSKernel 42.2's shen.initialise: version, the dict-backed
+%% property store, and fn on a function redefined with zero arity.
+t_shen_kernel_42_2(_Config) ->
+  {string, "42.2"} = shen("(version)"),
+  5 = shen("(do (put shen-erl-test colour 5) (get shen-erl-test colour))"),
+  4 = shen("((fn +) 1 3)"),
+  shen("(define shen-erl-zero X -> X)"),
+  1 = shen("(arity shen-erl-zero)"),
+  shen("(define shen-erl-zero -> 7)"),
+  0 = shen("(arity shen-erl-zero)"),
+  7 = shen("(fn shen-erl-zero)").
 
 t_shen_erl_apply(_Config) ->
   {string, "ABC"} = shen("(erl.apply string uppercase [\"abc\"])"),

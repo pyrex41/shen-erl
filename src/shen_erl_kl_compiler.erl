@@ -16,30 +16,36 @@
          load/1]).
 
 %% kl_* modules are compiled from KLambda at build time and are absent during Dialyzer analysis
--dialyzer({nowarn_function, [load/1, eval/1, eval_kl/1, start_repl/0, load_funs/0]}).
+-dialyzer({nowarn_function, [load/1, eval/1, eval_kl/1, start_repl/0, repl_loop/0, load_funs/0]}).
 
 %% Macros
-%% Tarver's refreshed S42 kernel has no shen.initialise function.  Its
-%% top-level initialisation forms must run in the order used by install.lsp.
-%% The community launcher/features extensions remain compatible and are loaded
-%% after the kernel proper, as in the other maintained ports.
--define(KL_MODS, ['kl_sys',
-                  'kl_writer',
+%% ShenOSKernel 42.2: every .kl file contains only defuns, so module order is
+%% not load-bearing.  The global environment is built afterwards by
+%% (shen.initialise) from init.kl; see load_funs/0.  The namespaces,
+%% type-annotations and programmable-pattern-matching extensions are compiled
+%% but not booted.
+-define(KL_MODS, ['kl_toplevel',
                   'kl_core',
-                  'kl_reader',
-                  'kl_declarations',
-                  'kl_toplevel',
-                  'kl_macros',
-                  'kl_load',
-                  'kl_prolog',
+                  'kl_sys',
+                  'kl_dict',
                   'kl_sequent',
-                  'kl_track',
-                  'kl_t-star',
                   'kl_yacc',
+                  'kl_reader',
+                  'kl_prolog',
+                  'kl_track',
+                  'kl_load',
+                  'kl_writer',
+                  'kl_macros',
+                  'kl_declarations',
                   'kl_types',
+                  'kl_t-star',
+                  'kl_init',
                   'kl_extension-features',
                   'kl_extension-expand-dynamic',
                   'kl_extension-launcher']).
+
+%% Features reported by (shen.x.features.current), as shen/scheme does.
+-define(PORT_FEATURES, ['shen/erlang']).
 
 %% Port-provided library functions that Shen code calls by name (erl.*,
 %% json.*, and the js.* ShenScript compatibility shims).
@@ -113,7 +119,28 @@ eval(ShenCode) ->
 -spec start_repl() -> ok.
 start_repl() ->
   shen_erl_global_stores:set_val('__shen_erl_exit_on_eof', true),
-  kl_toplevel:'shen.shen'().
+  kl_toplevel:'shen.credits'(),
+  repl_loop().
+
+%% shen.loop from toplevel.kl, plus a clean exit at end of input: after
+%% standard input reaches EOF the kernel reader raises "error: empty stream"
+%% once nothing is left to evaluate.  A loop in Erlang also keeps the stack
+%% flat, which the kernel's (do ... (shen.loop)) would not.
+repl_loop() ->
+  kl_toplevel:'shen.initialise_environment'(),
+  kl_toplevel:'shen.prompt'(),
+  try
+    kl_toplevel:'shen.read-evaluate-print'()
+  catch
+    throw:{simple_error, "error: empty stream"} = Error ->
+      case shen_erl_global_stores:get_val('__shen_erl_stdin_eof') of
+        {ok, true} -> erlang:halt(0);
+        _ -> kl_toplevel:'shen.toplevel-display-exception'(Error)
+      end;
+    Class:Reason ->
+      kl_toplevel:'shen.toplevel-display-exception'({Class, Reason})
+  end,
+  repl_loop().
 
 %%%===================================================================
 %%% Internal functions
@@ -121,33 +148,34 @@ start_repl() ->
 
 load_funs() ->
   register_modules(?KL_MODS),
+  %% Only file-level string literals remain as top-level forms in 42.2.
   [Mod:kl_tle() || Mod <- ?KL_MODS],
-  %% The refreshed kernel cannot run the old feature extension initialiser: it
-  %% refers to the removed shen.set-lambda-form-entry API.  Its stable public
-  %% current/add operations only require this backing global.
-  shen_erl_kl_primitives:set('shen.x.features.*features*', []),
+  invoke('shen.initialise', []),
   register_port_functions(),
+  invoke('shen.x.features.initialise', [?PORT_FEATURES]),
+  invoke('shen.x.expand-dynamic.initialise', []),
   ok.
 
 %% Equivalent to (update-lambda-table Name Arity) for each port function, but
-%% builds the curried entry directly instead of compiling one module per
-%% function at every boot.
+%% stores a host curried closure as the lambda form instead of compiling one
+%% module per function at every boot.  42.2 keeps arities and lambda forms in
+%% the *property-vector* dictionary (properties arity and shen.lambda-form),
+%% which is what arity, fn and partial application read.
 register_port_functions() ->
-  case {shen_erl_global_stores:get_mfa(put), shen_erl_global_stores:get_val('shen.*lambdatable*')} of
-    {{ok, _}, {ok, Table0}} ->
+  case shen_erl_global_stores:get_mfa(put) of
+    {ok, _} ->
       PropVector = shen_erl_kl_primitives:value('*property-vector*'),
-      Entries = [begin
-                   invoke(put, [Name, arity, Arity, PropVector]),
-                   [Name | curry(Mod, Name, Arity, [])]
-                 end || Mod <- ?PORT_SHEN_MODS,
-                        {Name, Arity} <- Mod:module_info(exports),
-                        not lists:member(Name, ?PORT_INTERNAL_FUNS),
-                        Arity > 0],
-      shen_erl_kl_primitives:set('shen.*lambdatable*', Entries ++ Table0),
+      [begin
+         invoke(put, [Name, arity, Arity, PropVector]),
+         invoke(put, [Name, 'shen.lambda-form', curry(Mod, Name, Arity, []), PropVector])
+       end || Mod <- ?PORT_SHEN_MODS,
+              {Name, Arity} <- Mod:module_info(exports),
+              not lists:member(Name, ?PORT_INTERNAL_FUNS),
+              Arity > 0],
       ok;
     _ ->
-      %% Stripped (shaken) kernels may omit the tables; direct calls still
-      %% resolve through the function store.
+      %% Stripped (shaken) kernels may omit the property functions; direct
+      %% calls still resolve through the function store.
       ok
   end.
 

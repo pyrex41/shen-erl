@@ -49,7 +49,7 @@ compile(ToplevelDef) ->
 -spec compile(module(), shen_erl_kl_parse:kl_tree(), atom()) -> {ok, module(), binary()} |
                                                                 {error, term()}.
 compile(Mod, ToplevelDefs, DefaultTle) ->
-  compile_toplevel(Mod, ToplevelDefs, #code{signatures = [],
+  compile_toplevel(Mod, last_defuns(ToplevelDefs), #code{signatures = [],
                                             forms = [],
                                             tles = [erl_syntax:atom(DefaultTle)]}).
 
@@ -97,6 +97,21 @@ compile_toplevel(Mod, [], #code{signatures = Sigs, forms = Forms, tles = Tles}) 
     {ok, Mod, Bin, _Warnings} -> {ok, Mod, Bin};
     {error, Errors, Warnings} -> {error, {Errors, Warnings}}
   end.
+
+%% A file may define the same function twice (ShenOSKernel 42.2's stlib.kl
+%% defines min twice).  As when the file is loaded form by form, the last
+%% definition wins.
+last_defuns(ToplevelDefs) ->
+  Last = maps:from_list([{Name, Def} || Def = [defun, Name, _Args, _Body] <- ToplevelDefs]),
+  {Kept, _Seen} =
+    lists:foldr(fun (Def = [defun, Name, _Args, _Body], {Acc, Seen}) ->
+                      case {maps:get(Name, Last) =:= Def, maps:is_key(Name, Seen)} of
+                        {true, false} -> {[Def | Acc], Seen#{Name => true}};
+                        _ -> {Acc, Seen}
+                      end;
+                    (Exp, {Acc, Seen}) -> {[Exp | Acc], Seen}
+                end, {[], #{}}, ToplevelDefs),
+  Kept.
 
 %% Lists
 compile_exp([], _Env) -> % ()

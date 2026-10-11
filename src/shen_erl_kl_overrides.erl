@@ -44,14 +44,26 @@ pr(String, Stream) ->
 'symbol?'(Val) when is_atom(Val), Val =/= true, Val =/= false -> true;
 'symbol?'(_Val) -> false.
 
+%% Values that are = must hash equal, so integral floats hash as integers.
+%% Like the kernel's hash, the result is in 1..Bound-1 (0 maps to 1).
 hash(Val, Bound) ->
-  erlang:phash2(Val, Bound).
+  case erlang:phash2(hash_key(Val), Bound) of
+    0 -> 1;
+    Hash -> Hash
+  end.
+
+hash_key(Val) when is_float(Val), Val == trunc(Val) -> trunc(Val);
+hash_key([H | T]) -> [hash_key(H) | hash_key(T)];
+hash_key(Val) -> Val.
 
 'not'(Val) -> not Val.
 
 'boolean?'(Val) -> is_boolean(Val).
 
-'integer?'(Val) -> is_integer(Val).
+%% Shen integrality, not the host representation: 4.0 is an integer.
+'integer?'(Val) when is_integer(Val) -> true;
+'integer?'(Val) when is_float(Val) -> Val == trunc(Val);
+'integer?'(_Val) -> false.
 
 '@p'(X, Y) ->
   Dict = shen_erl_global_stores:dict_new(),
@@ -86,8 +98,12 @@ hash(Val, Bound) ->
   shen_erl_global_stores:dict_rm(Dict, Key),
   Key.
 
-'shen.dict-fold'({dict, Dict}, F, Init) ->
-  shen_erl_global_stores:dict_fold(Dict, F, Init).
+%% (shen.dict-fold F Dict Init), with F a curried Key -> Value -> Acc
+%% function, as in ShenOSKernel's dict.kl.
+'shen.dict-fold'(F, {dict, Dict}, Init) ->
+  shen_erl_global_stores:dict_fold(Dict,
+                                   fun({Key, Val}, Acc) -> ((F(Key))(Val))(Acc) end,
+                                   Init).
 
 'shen.dict-keys'({dict, Dict}) ->
   shen_erl_global_stores:dict_keys(Dict).
@@ -109,7 +125,10 @@ hash(Val, Bound) ->
   {string, binary_to_list(Binary)}.
 
 'cd'({string, ""}) ->
-  'cd'(shen_erl_kl_primitives:value('*home-directory*'));
+  case shen_erl_kl_primitives:value('*home-directory*') of
+    {string, ""} -> ok;
+    Home -> 'cd'(Home)
+  end;
 'cd'(DirStr = {string, Dir}) ->
   shen_erl_kl_primitives:set('*home-directory*', DirStr),
   file:set_cwd(Dir).
