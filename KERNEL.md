@@ -13,7 +13,6 @@ asset and verifies its checksum before unpacking anything:
 - Asset:
   `https://github.com/Shen-Language/shen-sources/releases/download/shen-43.1/ShenOSKernel-43.1.tar.gz`
 - SHA-256: `900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920`
-  (the checksum pinned in shen-scheme 0.50's `Makefile`)
 
 To build offline, point `SHEN_KERNEL_ARCHIVE` at a local copy of the same
 tarball:
@@ -43,9 +42,10 @@ Differences that matter to this port:
   `js.*`) are registered there so that `fn`, `arity` and partial application
   see them. The dictionary primitives are overridden by ETS-backed versions in
   `shen_erl_kl_overrides`.
-- Public 43.1 character stream functions are `char-stream?`,
-  `read-unit-string`, and `write-string`; Erlang IO devices support these
-  Unicode operations while retaining byte primitives for byte callers.
+- Public 43.1 character stream functions are exported with callable metadata.
+  This port remains byte-oriented, so `char-stream?` returns `false` and the
+  public character operations report a catchable unsupported-stream error;
+  `read-byte` and `write-byte` retain the port's existing behavior.
 - The REPL entry point is `shen.repl`. Standard input returns -1 at EOF, so
   a final line without a trailing newline is still read.
 

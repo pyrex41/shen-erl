@@ -172,20 +172,14 @@ t_shen_kernel_43_1(_Config) ->
   7 = shen("(fn shen-erl-zero)").
 
 t_shen_character_io(_Config) ->
-  Input = "/tmp/shen-erl-char-stream-input",
-  Output = "/tmp/shen-erl-char-stream-output",
-  ok = file:write_file(Input, <<"x">>),
-  try
-    1 = shen("(arity char-stream?)"),
-    1 = shen("(arity read-unit-string)"),
-    2 = shen("(arity write-string)"),
-    true = shen("(char-stream? (stinput))"),
-    {string, "ok"} = shen("(write-string \"ok\" (open \"/tmp/shen-erl-char-stream-output\" out))"),
-    {string, "x"} = shen("(read-unit-string (open \"/tmp/shen-erl-char-stream-input\" in))")
-  after
-    file:delete(Input),
-    file:delete(Output)
-  end.
+  1 = shen("(arity char-stream?)"),
+  1 = shen("(arity read-unit-string)"),
+  2 = shen("(arity write-string)"),
+  false = shen("(char-stream? (stinput))"),
+  {string, "character streams are unsupported"} =
+    shen("(trap-error (read-unit-string (stinput)) (lambda E (error-to-string E)))"),
+  {string, "character streams are unsupported"} =
+    shen("(trap-error (write-string \"λ\" (stoutput)) (lambda E (error-to-string E)))").
 
 t_shen_erl_apply(_Config) ->
   {string, "ABC"} = shen("(erl.apply string uppercase [\"abc\"])"),

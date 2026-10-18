@@ -235,17 +235,16 @@ tl(_Val) -> 'simple-error'({string, "tail expects a non-empty list"}).
 
 'shen.char-stoutput?'(_Stream) -> false.
 
-%% Erlang's io devices expose Unicode character operations through the same
-%% interface used for byte reads.  The 43.1 kernel dispatches character I/O
-%% through these public names, so report the capability for standard and file
-%% IO devices alike.  read-byte remains available for byte-oriented callers.
-'char-stream?'(_Stream) -> true.
+%% This port's streams are byte-oriented.  The public character functions are
+%% still exported so Shen's callable metadata is complete, but the 43.1
+%% kernel will keep using read-byte/write-byte when this capability is false.
+'char-stream?'(_Stream) -> false.
 
-'read-unit-string'(Stream) ->
-  'shen.read-unit-string'(Stream).
+'read-unit-string'(_Stream) ->
+  'simple-error'({string, "character streams are unsupported"}).
 
-'write-string'(String, Stream) ->
-  'shen.write-string'(String, Stream).
+'write-string'(_String, _Stream) ->
+  'simple-error'({string, "character streams are unsupported"}).
 
 'shen.read-unit-string'(Stream) ->
   case io:get_chars(Stream, [], 1) of
