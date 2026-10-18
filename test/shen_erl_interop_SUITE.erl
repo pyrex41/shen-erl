@@ -20,7 +20,8 @@
          t_shen_partial_application/1,
          t_shen_send_receive/1,
          t_shen_trap_error/1,
-         t_shen_kernel_42_2/1]).
+         t_shen_kernel_43_1/1,
+         t_shen_character_io/1]).
 
 -include_lib("common_test/include/ct.hrl").
 
@@ -43,7 +44,8 @@ groups() ->
                t_shen_partial_application,
                t_shen_send_receive,
                t_shen_trap_error,
-               t_shen_kernel_42_2]}].
+               t_shen_kernel_43_1,
+               t_shen_character_io]}].
 
 suite() ->
   [{timetrap, {minutes, 2}}].
@@ -157,10 +159,10 @@ t_shen_registered(_Config) ->
   1 = shen("(arity erl.tuple)"),
   true = is_function(shen("(fn erl.apply)")).
 
-%% Boot runs ShenOSKernel 42.2's shen.initialise: version, the dict-backed
+%% Boot runs ShenOSKernel 43.1's shen.initialise: version, the dict-backed
 %% property store, and fn on a function redefined with zero arity.
-t_shen_kernel_42_2(_Config) ->
-  {string, "42.2"} = shen("(version)"),
+t_shen_kernel_43_1(_Config) ->
+  {string, "43.1"} = shen("(version)"),
   5 = shen("(do (put shen-erl-test colour 5) (get shen-erl-test colour))"),
   4 = shen("((fn +) 1 3)"),
   shen("(define shen-erl-zero X -> X)"),
@@ -168,6 +170,22 @@ t_shen_kernel_42_2(_Config) ->
   shen("(define shen-erl-zero -> 7)"),
   0 = shen("(arity shen-erl-zero)"),
   7 = shen("(fn shen-erl-zero)").
+
+t_shen_character_io(_Config) ->
+  Input = "/tmp/shen-erl-char-stream-input",
+  Output = "/tmp/shen-erl-char-stream-output",
+  ok = file:write_file(Input, <<"x">>),
+  try
+    1 = shen("(arity char-stream?)"),
+    1 = shen("(arity read-unit-string)"),
+    2 = shen("(arity write-string)"),
+    true = shen("(char-stream? (stinput))"),
+    {string, "ok"} = shen("(write-string \"ok\" (open \"/tmp/shen-erl-char-stream-output\" out))"),
+    {string, "x"} = shen("(read-unit-string (open \"/tmp/shen-erl-char-stream-input\" in))")
+  after
+    file:delete(Input),
+    file:delete(Output)
+  end.
 
 t_shen_erl_apply(_Config) ->
   {string, "ABC"} = shen("(erl.apply string uppercase [\"abc\"])"),

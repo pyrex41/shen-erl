@@ -50,6 +50,9 @@
          'eval-kl'/1,
          'get-time'/1,
          'type'/2,
+         'char-stream?'/1,
+         'read-unit-string'/1,
+         'write-string'/2,
          'shen.char-stinput?'/1,
          'shen.char-stoutput?'/1,
          'shen.read-unit-string'/1,
@@ -231,6 +234,18 @@ tl(_Val) -> 'simple-error'({string, "tail expects a non-empty list"}).
 'shen.char-stinput?'(_Stream) -> false.
 
 'shen.char-stoutput?'(_Stream) -> false.
+
+%% Erlang's io devices expose Unicode character operations through the same
+%% interface used for byte reads.  The 43.1 kernel dispatches character I/O
+%% through these public names, so report the capability for standard and file
+%% IO devices alike.  read-byte remains available for byte-oriented callers.
+'char-stream?'(_Stream) -> true.
+
+'read-unit-string'(Stream) ->
+  'shen.read-unit-string'(Stream).
+
+'write-string'(String, Stream) ->
+  'shen.write-string'(String, Stream).
 
 'shen.read-unit-string'(Stream) ->
   case io:get_chars(Stream, [], 1) of
