@@ -1,7 +1,8 @@
 # shen-erl
 
 `shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 43.1 and
-boots the community ShenOSKernel 43.1 release unmodified, including the
+boots the community ShenOSKernel 43.1 kernel unmodified, as built at upstream
+`ec16a9f` (the 43.1 release plus shen-sources#117), including the
 portable launcher and feature extensions shared by the other maintained Shen
 ports. See [KERNEL.md](KERNEL.md) for exact provenance.
 
@@ -19,7 +20,7 @@ make
 ```
 
 The build downloads the checksum-pinned kernel archive (or uses
-`SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.1.tar.gz`), compiles the KLambda
+`SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.1-ec16a9f.tar.gz`), compiles the KLambda
 modules to BEAM, and writes `bin/shen-erl`. The launcher locates its `ebin`
 directory automatically; `SHEN_ERL_ROOTDIR` remains available as an override.
 
