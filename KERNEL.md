@@ -1,24 +1,29 @@
 # Kernel provenance
 
-`shen-erl` targets Shen **43.1**: the community **ShenOSKernel 43.1** release
-from [`Shen-Language/shen-sources`](https://github.com/Shen-Language/shen-sources),
-used wholesale and unmodified.
+`shen-erl` targets Shen **43.1**: the community **ShenOSKernel 43.1** kernel
+from [`Shen-Language/shen-sources`](https://github.com/Shen-Language/shen-sources)
+as built at upstream master `ec16a9f` (the 43.1 release plus the type checker's
+deref-once change, shen-sources#117), used wholesale and unmodified.
+`(version)` is `"43.1"`.
 
 ## Where the build gets it
 
 `scripts/fetch-kernel.sh` (driven by the `Makefile`) downloads the release
 asset and verifies its checksum before unpacking anything:
 
-- Release: tag `shen-43.1`, commit `715824a52b55e9c81a9501df8548ff3edd8411f5`
-- Asset:
-  `https://github.com/Shen-Language/shen-sources/releases/download/shen-43.1/ShenOSKernel-43.1.tar.gz`
-- SHA-256: `900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920`
+- Upstream commit: `ec16a9f` (merge of shen-sources#117), on top of tag `shen-43.1`
+  (`715824a52b55e9c81a9501df8548ff3edd8411f5`)
+- Asset: unmodified upstream sources built with the repo's `make klambda`/`make release`,
+  `https://github.com/pyrex41/shen-sources/releases/download/upstream-ec16a9f/ShenOSKernel-43.1-ec16a9f.tar.gz`
+- SHA-256: `060066a8f84d9a2f7d41cb3b37b986a8d4653279752b739b5063cd648d9baacd`
+- Previous pin: the `shen-43.1` release asset, SHA-256
+  `900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920`
 
 To build offline, point `SHEN_KERNEL_ARCHIVE` at a local copy of the same
 tarball:
 
 ```sh
-SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.1.tar.gz make
+SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.1-ec16a9f.tar.gz make
 ```
 
 The local archive must match the same SHA-256. If the download or the local
