@@ -118,29 +118,40 @@ eval(ShenCode) ->
 
 -spec start_repl() -> ok.
 start_repl() ->
-  shen_erl_global_stores:set_val('__shen_erl_exit_on_eof', true),
   kl_toplevel:'shen.credits'(),
   repl_loop().
 
-%% shen.loop from toplevel.kl, plus a clean exit at end of input: after
-%% standard input reaches EOF the kernel reader raises "error: empty stream"
-%% once nothing is left to evaluate.  A loop in Erlang also keeps the stack
-%% flat, which the kernel's (do ... (shen.loop)) would not.
+%% shen.loop from toplevel.kl, with shen.read-evaluate-print's read replaced
+%% by repl_read/0.  A loop in Erlang also keeps the stack flat, which the
+%% kernel's (do ... (shen.loop)) would not.
 repl_loop() ->
   kl_toplevel:'shen.initialise_environment'(),
   kl_toplevel:'shen.prompt'(),
   try
-    kl_toplevel:'shen.read-evaluate-print'()
+    Package = shen_erl_kl_primitives:value('shen.*package*'),
+    Lineread = kl_toplevel:'shen.package-user-input'(Package, repl_read()),
+    History = kl_toplevel:'shen.update-history'(),
+    kl_toplevel:'shen.evaluate-lineread'(
+      Lineread, History, shen_erl_kl_primitives:value('shen.*tc*'))
   catch
-    throw:{simple_error, "error: empty stream"} = Error ->
-      case shen_erl_global_stores:get_val('__shen_erl_stdin_eof') of
-        {ok, true} -> erlang:halt(0);
-        _ -> kl_toplevel:'shen.toplevel-display-exception'(Error)
-      end;
     Class:Reason ->
       kl_toplevel:'shen.toplevel-display-exception'({Class, Reason})
   end,
   repl_loop().
+
+%% Only the REPL's own read treats end of input as the end of the session:
+%% EOF on the first byte of a line prints a newline and exits.  A program
+%% evaluated here that reads standard input sees ordinary EOF behaviour.
+repl_read() ->
+  Stream = shen_erl_kl_primitives:value('*stinput*'),
+  case kl_reader:'shen.my-read-byte'(Stream) of
+    -1 ->
+      invoke(nl, [1]),
+      erlang:halt(0);
+    Byte ->
+      kl_reader:'shen.read-loop'(Stream, Byte, [],
+                                 fun(X) -> kl_reader:'shen.return?'(X) end)
+  end.
 
 %%%===================================================================
 %%% Internal functions
