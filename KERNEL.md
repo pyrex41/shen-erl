@@ -1,6 +1,6 @@
 # Kernel provenance
 
-`shen-erl` targets Shen **43.1**: the community **ShenOSKernel 43.1** release
+`shen-erl` targets Shen **43.2**: the community **ShenOSKernel 43.2** release
 from [`Shen-Language/shen-sources`](https://github.com/Shen-Language/shen-sources),
 used wholesale and unmodified.
 
@@ -9,16 +9,16 @@ used wholesale and unmodified.
 `scripts/fetch-kernel.sh` (driven by the `Makefile`) downloads the release
 asset and verifies its checksum before unpacking anything:
 
-- Release: tag `shen-43.1`, commit `715824a52b55e9c81a9501df8548ff3edd8411f5`
+- Release: tag `shen-43.2` (tag object `7b7563e5`), commit `e6947f507ebc`
 - Asset:
-  `https://github.com/Shen-Language/shen-sources/releases/download/shen-43.1/ShenOSKernel-43.1.tar.gz`
-- SHA-256: `900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920`
+  `https://github.com/Shen-Language/shen-sources/releases/download/shen-43.2/ShenOSKernel-43.2.tar.gz`
+- SHA-256: `23c71508f0de24785e1f127ea4fab440081904d81c463090bc642ee840417f32`
 
 To build offline, point `SHEN_KERNEL_ARCHIVE` at a local copy of the same
 tarball:
 
 ```sh
-SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.1.tar.gz make
+SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.2.tar.gz make
 ```
 
 The local archive must match the same SHA-256. If the download or the local
@@ -26,8 +26,8 @@ archive fails the checksum, the build stops.
 
 ## Lineage
 
-Until this release `shen-erl` booted ShenOSKernel 42.2. This port adopts the
-community ShenOSKernel 43.1 release wholesale.
+Until this release `shen-erl` booted ShenOSKernel 43.1. This port adopts the
+community ShenOSKernel 43.2 release wholesale.
 
 Differences that matter to this port:
 
