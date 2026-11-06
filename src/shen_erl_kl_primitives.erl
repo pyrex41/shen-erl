@@ -228,7 +228,7 @@ tl(_Val) -> 'simple-error'({string, "tail expects a non-empty list"}).
 'read-byte'(Stream) ->
   case io:get_chars(Stream, [], 1) of
     [Char] -> Char;
-    eof -> maybe_exit_on_repl_eof(Stream)
+    eof -> -1
   end.
 
 'shen.char-stinput?'(_Stream) -> false.
@@ -249,9 +249,7 @@ tl(_Val) -> 'simple-error'({string, "tail expects a non-empty list"}).
 'shen.read-unit-string'(Stream) ->
   case io:get_chars(Stream, [], 1) of
     [Char] -> {string, [Char]};
-    eof ->
-      maybe_exit_on_repl_eof(Stream),
-      {string, ""}
+    eof -> {string, ""}
   end.
 
 'shen.write-string'({string, String}, Stream) ->
@@ -323,20 +321,3 @@ vector_equal(Vec1, Vec2, Index) ->
     {not_found, not_found} -> vector_equal(Vec1, Vec2, Index - 1);
     _ -> false
   end.
-
-%% Reads from standard input return -1 at EOF, so the reader still processes a
-%% final line without a trailing newline (ShenOSKernel 42.1+).  In the REPL
-%% the first EOF is reported as -1 and remembered; the REPL loop exits when
-%% the kernel then reports an empty stream, and any later read at EOF exits.
-maybe_exit_on_repl_eof(standard_io) ->
-  case shen_erl_global_stores:get_val('__shen_erl_exit_on_eof') of
-    {ok, true} ->
-      case shen_erl_global_stores:get_val('__shen_erl_stdin_eof') of
-        {ok, true} -> erlang:halt(0);
-        _ ->
-          shen_erl_global_stores:set_val('__shen_erl_stdin_eof', true),
-          -1
-      end;
-    _ -> -1
-  end;
-maybe_exit_on_repl_eof(_Stream) -> -1.

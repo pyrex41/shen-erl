@@ -47,7 +47,12 @@ Differences that matter to this port:
   public character operations report a catchable unsupported-stream error;
   `read-byte` and `write-byte` retain the port's existing behavior.
 - The REPL entry point is `shen.repl`. Standard input returns -1 at EOF, so
-  a final line without a trailing newline is still read.
+  a final line without a trailing newline is still read. The REPL loop is in
+  Erlang (`shen_erl_kl_compiler:repl_loop/0`) and, like Shen/JIT, only its own
+  read treats EOF on the first byte of a line as the end of the session
+  (it prints a newline and exits 0). A program evaluated at the REPL that
+  reads standard input sees ordinary EOF: `read-byte` returns -1, and `read`
+  and `lineread` raise `error: empty stream`.
 
 The port does not override `macroexpand`, `shen.macroexpand-h`, the reader or
 `shen.try-parse`, so the 42.1 source-form handler changes need no port code.
