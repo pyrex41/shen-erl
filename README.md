@@ -1,7 +1,7 @@
 # shen-erl
 
-`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 43.2 and
-boots the community ShenOSKernel 43.2 release unmodified, including the
+`shen-erl` is an Erlang/BEAM implementation of Shen. It tracks Shen 43.4 and
+boots the community ShenOSKernel 43.4 release unmodified, including the
 portable launcher and feature extensions shared by the other maintained Shen
 ports. See [KERNEL.md](KERNEL.md) for exact provenance.
 
@@ -19,7 +19,7 @@ make
 ```
 
 The build downloads the checksum-pinned kernel archive (or uses
-`SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.2.tar.gz`), compiles the KLambda
+`SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.4.tar.gz`), compiles the KLambda
 modules to BEAM, and writes `bin/shen-erl`. The launcher locates its `ebin`
 directory automatically; `SHEN_ERL_ROOTDIR` remains available as an override.
 
@@ -124,7 +124,7 @@ make docker-dialyze
 make shen-tests
 ```
 
-This runs the ShenOSKernel 43.2 kernel test suite.
+This runs the ShenOSKernel 43.4 kernel test suite.
 ## Optional Nix environment
 
 Nix is optional; the normal shen-erl build and launcher commands continue to work
