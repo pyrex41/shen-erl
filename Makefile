@@ -1,14 +1,14 @@
 BASE_DIR = $(shell pwd)
 
-SHENVERSION = 43.2
+SHENVERSION = 43.4
 
 ## The kernel: the community ShenOSKernel release from Shen-Language/shen-sources,
 ## used wholesale and pinned by checksum (see KERNEL.md).  Set
-## SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.2.tar.gz to use a local copy.
+## SHEN_KERNEL_ARCHIVE=/path/to/ShenOSKernel-43.4.tar.gz to use a local copy.
 KERNEL_DISTDIR = ShenOSKernel-$(SHENVERSION)
 KERNEL_ARCHIVE = $(KERNEL_DISTDIR).tar.gz
 KERNEL_URL = https://github.com/Shen-Language/shen-sources/releases/download/shen-$(SHENVERSION)/$(KERNEL_ARCHIVE)
-KERNEL_SHA256 = 23c71508f0de24785e1f127ea4fab440081904d81c463090bc642ee840417f32
+KERNEL_SHA256 = 15e7972e6bf0cd65d37c2eba85750b8839d2dbadda41027eae0c88e5017a2756
 
 ## Kernel modules compiled to BEAM.  stlib.kl (the precompiled standard
 ## library) is not booted.  The namespaces and type-annotations extensions are

@@ -159,10 +159,10 @@ t_shen_registered(_Config) ->
   1 = shen("(arity erl.tuple)"),
   true = is_function(shen("(fn erl.apply)")).
 
-%% Boot runs ShenOSKernel 43.2's shen.initialise: version, the dict-backed
+%% Boot runs ShenOSKernel 43.4's shen.initialise: version, the dict-backed
 %% property store, and fn on a function redefined with zero arity.
 t_shen_kernel_43_1(_Config) ->
-  {string, "43.2"} = shen("(version)"),
+  {string, "43.4"} = shen("(version)"),
   5 = shen("(do (put shen-erl-test colour 5) (get shen-erl-test colour))"),
   4 = shen("((fn +) 1 3)"),
   shen("(define shen-erl-zero X -> X)"),
